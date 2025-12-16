@@ -129,7 +129,70 @@ async function run() {
             res.send(result);
         });
 
+        app.post("/bookings", async (req, res) => {
+            const booking = req.body;
 
+            booking.status = "pending";
+            booking.createdAt = new Date();
+
+            const result = await col('booking').insertOne(booking);
+
+            res.send({
+                success: true,
+                message: "Booking request sent",
+                insertedId: result.insertedId
+            });
+        });
+
+        // ---------------------------Vendor---------------
+
+        app.get("/vendor-tickets", async (req, res) => {
+            const { vendorEmail } = req.query;
+
+            // Validation
+            if (!vendorEmail) {
+                return res.status(400).send({
+                    success: false,
+                    message: "vendorEmail query is required"
+                });
+            }
+
+            const query = { vendorEmail };
+
+            const tickets = await col('tickets')
+                .find(query)
+                .sort({ createdAt: -1 }) // latest first
+                .toArray();
+
+            res.send({
+                success: true,
+                count: tickets.length,
+                data: tickets
+            });
+        });
+
+        app.get("/vendor/bookings", async (req, res) => {
+            const { vendorEmail } = req.query;
+
+            const bookings = await col('booking').find({
+                vendorEmail
+
+            }).toArray();
+
+            res.send(bookings);
+        });
+
+        app.patch("/bookings/:id", async (req, res) => {
+            const { id } = req.params;
+            const { status } = req.body;
+
+            const result = await col('booking').updateOne(
+                { _id: new ObjectId(id) },
+                { $set: { status } }
+            );
+
+            res.send(result);
+        });
 
 
 
