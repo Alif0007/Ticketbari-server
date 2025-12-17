@@ -195,6 +195,43 @@ async function run() {
         });
 
 
+        // ---------Admin---------
+
+        app.get("/admin/tickets", async (req, res) => {
+            const tickets = await col('tickets').find().toArray();
+            res.send(tickets);
+        });
+
+
+        app.patch("/admin/tickets/:id", async (req, res) => {
+            const { id } = req.params;
+
+            const { verificationStatus } = req.body;
+
+            const result = await col('tickets').updateOne(
+                { _id: new ObjectId(id) },
+                { $set: { verificationStatus } }
+            );
+            console.log(result)
+            res.send(result);
+        });
+
+
+        app.patch("/admin/tickets/advertise/:id", async (req, res) => {
+            const count = await col('tickets').countDocuments({ isAdvertised: true });
+            if (count >= 6) {
+                return res.status(400).send({ message: "Maximum 6 advertised tickets allowed" });
+            }
+
+            const id = new ObjectId(req.params.id);
+            const { isAdvertised } = req.body
+            const result = await col('tickets').updateOne(
+                { _id: id },
+                { $set: { isAdvertised } }
+            );
+            res.send(result);
+        });
+
 
         await client.db("admin").command({ ping: 1 });
         console.log("Pinged your deployment. You successfully connected to MongoDB!");
