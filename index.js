@@ -72,6 +72,9 @@ async function run() {
         app.post('/tickets', async (req, res) => {
             const ticket = req.body;
             // ticket.vendorEmail = req.user.email;
+            if (ticket.perks && ticket.perks.length === 0) {
+                ticket.perks = ["none"];
+            }
             ticket.status = 'pending';
             ticket.advertised = false;
             ticket.createdAt = new Date();
@@ -86,6 +89,7 @@ async function run() {
             if (to) query.to = new RegExp(to, 'i');
             if (type) query.transportType = type;
             if (approved === 'true') query.status = 'approved';
+
             if (advertised === 'true') query.advertised = true;
 
             let sortQuery = {};
@@ -94,15 +98,43 @@ async function run() {
 
             const skip = (Number(page) - 1) * Number(limit);
             const data = await col('tickets')
-                .find(query)
+                .find({ verificationStatus: 'approved' })
                 .sort(sortQuery)
-                .skip(skip)
-                .limit(Number(limit))
+
+
                 .toArray();
 
             const total = await col('tickets').countDocuments(query);
             res.send({ total, data });
+
         });
+
+        app.get('/latest-tickets', async (req, res) => {
+
+            const data = await col('tickets')
+                .find({ verificationStatus: 'approved', })
+                .sort({ createdAt: -1 }).limit(6)
+                .toArray();
+
+            res.send({ data });
+
+        });
+
+
+        app.get('/advertise-tickets', async (req, res) => {
+
+            const data = await col('tickets')
+                .find({
+
+                    advertised: true
+                })
+                .sort({ createdAt: -1 })
+                .toArray();
+
+            res.send({ data });
+
+        });
+
 
         app.get('/tickets/:id', async (req, res) => {
             const ticket = await col('tickets').findOne({ _id: new ObjectId(req.params.id) });
@@ -142,6 +174,24 @@ async function run() {
                 message: "Booking request sent",
                 insertedId: result.insertedId
             });
+        });
+
+
+        app.get('/tickets-advertise', async (req, res) => {
+
+
+
+
+            const data = await col('tickets')
+                .find({ advertised: true })
+
+
+
+                .toArray();
+
+
+            res.send(data);
+
         });
 
         // ---------------------------Vendor---------------
@@ -212,22 +262,22 @@ async function run() {
                 { _id: new ObjectId(id) },
                 { $set: { verificationStatus } }
             );
-            console.log(result)
+
             res.send(result);
         });
 
 
         app.patch("/admin/tickets/advertise/:id", async (req, res) => {
-            const count = await col('tickets').countDocuments({ isAdvertised: true });
+            const count = await col('tickets').countDocuments({ advertised: true });
             if (count >= 6) {
                 return res.status(400).send({ message: "Maximum 6 advertised tickets allowed" });
             }
-
+            console.log(count)
             const id = new ObjectId(req.params.id);
-            const { isAdvertised } = req.body
+            const { advertised } = req.body
             const result = await col('tickets').updateOne(
                 { _id: id },
-                { $set: { isAdvertised } }
+                { $set: { advertised } }
             );
             res.send(result);
         });
