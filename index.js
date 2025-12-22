@@ -87,32 +87,45 @@ async function run() {
             const result = await col('tickets').insertOne(ticket);
             res.send(result);
         });
-
         app.get('/tickets', async (req, res) => {
-            const { from, to, type, approved, sort, page = 1, limit = 6, advertised } = req.query;
-            const query = {};
-            if (from) query.from = new RegExp(from, 'i');
-            if (to) query.to = new RegExp(to, 'i');
-            if (type) query.transportType = type;
-            if (approved === 'true') query.status = 'approved';
+            try {
+                const { from, to, type, sort, page = 1, limit = 6 } = req.query;
 
-            if (advertised === 'true') query.advertised = true;
+                // Build search query
+                const query = { verificationStatus: 'approved' };
+                if (from) query.from = new RegExp(from, 'i');
+                if (to) query.to = new RegExp(to, 'i');
+                if (type) query.transportType = type;
 
-            let sortQuery = {};
-            if (sort === 'price_asc') sortQuery.price = 1;
-            if (sort === 'price_desc') sortQuery.price = -1;
+                // Build sort
+                const sortQuery = {};
+                if (sort === 'price_asc') sortQuery.price = 1;
+                if (sort === 'price_desc') sortQuery.price = -1;
 
-            const skip = (Number(page) - 1) * Number(limit);
-            const data = await col('tickets')
-                .find({ verificationStatus: 'approved' })
-                .sort(sortQuery)
+                // Pagination
+                const skip = (page - 1) * limit;
 
+                // Get data
+                const data = await col('tickets')
+                    .find(query)
+                    .sort(sortQuery)
+                    .skip(skip)
+                    .limit(Number(limit))
+                    .toArray();
 
-                .toArray();
+                const total = await col('tickets').countDocuments(query);
 
-            const total = await col('tickets').countDocuments(query);
-            res.send({ total, data });
+                res.send({
+                    success: true,
+                    data,
+                    total,
+                    page: Number(page),
+                    totalPages: Math.ceil(total / limit)
+                });
 
+            } catch (error) {
+                res.status(500).send({ success: false, error: error.message });
+            }
         });
 
         app.get('/latest-tickets', async (req, res) => {
