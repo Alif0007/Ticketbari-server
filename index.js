@@ -67,6 +67,12 @@ async function run() {
             res.send(result);
         });
 
+        app.get('/users/:email/role', async (req, res) => {
+
+            const user = await col('users').findOne({ email: req.params.email });
+            res.send({ role: user?.role || 'user' });
+        });
+
 
         // -------------------- TICKETS --------------------
         app.post('/tickets', async (req, res) => {
@@ -166,6 +172,7 @@ async function run() {
 
             booking.status = "pending";
             booking.createdAt = new Date();
+            console.log(booking)
 
             const result = await col('booking').insertOne(booking);
 
@@ -173,6 +180,30 @@ async function run() {
                 success: true,
                 message: "Booking request sent",
                 insertedId: result.insertedId
+            });
+        });
+        app.get("/bookings", async (req, res) => {
+            const { userEmail } = req.query;
+
+            // Validation
+            if (!userEmail) {
+                return res.status(400).send({
+                    success: false,
+                    message: "vendorEmail query is required"
+                });
+            }
+
+            const query = { userEmail };
+
+            const tickets = await col('booking')
+                .find(query)
+                .sort({ createdAt: -1 }) // latest first
+                .toArray();
+
+            res.send({
+                success: true,
+                count: tickets.length,
+                data: tickets
             });
         });
 
